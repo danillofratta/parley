@@ -1,0 +1,12 @@
+{
+  "recommendations": [
+    "golang.go",
+    "ms-dotnettools.csdevkit",
+    "ms-python.python",
+    "charliermarsh.ruff",
+    "ms-azuretools.vscode-docker",
+    "redhat.vscode-yaml",
+    "editorconfig.editorconfig",
+    "github.vscode-pull-request-github"
+  ]
+}

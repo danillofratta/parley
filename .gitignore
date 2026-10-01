@@ -1,0 +1,42 @@
+# Secrets
+.env
+*.pem
+*.key
+
+# Go
+bin/
+*.exe
+*.test
+coverage.out
+
+# .NET
+[Bb]in/
+[Oo]bj/
+*.user
+.vs/
+TestResults/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+
+# Claude Code (personal, not shared)
+CLAUDE.local.md
+.claude/settings.local.json
+
+# OS / editors
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json
