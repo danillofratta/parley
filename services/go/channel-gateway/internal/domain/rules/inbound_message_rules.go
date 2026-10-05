@@ -2,7 +2,8 @@ package rules
 
 import "strings"
 
-// zeroable is satisfied by value objects that can be empty, without importing them.
+// zeroable is satisfied by value objects that can be empty, without importing them
+// (rules sit before value objects in the domain dependency order).
 type zeroable interface {
 	IsZero() bool
 }

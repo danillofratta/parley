@@ -18,13 +18,16 @@ Report, ordered by severity, with file and line:
    implementations referenced outside the composition root.
 3. CQRS violations (query writing or loading aggregates; command changing
    more than one aggregate; command returning read models).
-4. DDD issues (anemic aggregates with setters, invariants outside the domain,
+4. Domain layout issues (a concept in the wrong folder, a domain folder
+   importing one to its right in the dependency order, rules or events
+   depending on entities).
+5. DDD issues (anemic aggregates with setters, invariants outside the domain,
    missing value objects, domain events leaking as integration events,
    terms outside the ubiquitous language).
-5. MCP issues (business logic inside a tool, tenant read from tool
+6. MCP issues (business logic inside a tool, tenant read from tool
    arguments, non-idempotent command tools, missing allowlist on the client).
-6. Messaging issues (Kafka called outside the relay, missing Inbox check,
+7. Messaging issues (Kafka called outside the relay, missing Inbox check,
    wrong message key, missing tenantId or traceparent).
-7. Missing tests for acceptance criteria.
+8. Missing tests for acceptance criteria.
 
 For each finding, explain why it matters and suggest the fix. Do not edit files.

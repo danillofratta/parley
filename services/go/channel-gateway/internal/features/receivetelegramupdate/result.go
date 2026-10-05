@@ -1,6 +1,7 @@
 package receivetelegramupdate
 
-type ReceiveTelegramUpdateResult struct {
+// Result is the application output.
+type Result struct {
 	InboundMessageID string
 	Duplicate        bool
 }

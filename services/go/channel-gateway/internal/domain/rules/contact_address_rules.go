@@ -3,9 +3,10 @@ package rules
 import (
 	"strings"
 
-	"github.com/parley/parley/services/go/channel-gateway/internal/domain/enums"
+	"github.com/danillofratta/parley/services/go/channel-gateway/internal/domain/enums"
 )
 
+// ChannelMustBeKnown: a contact can only be reached through a channel Parley supports.
 type ChannelMustBeKnown struct{ Channel enums.Channel }
 
 func (r ChannelMustBeKnown) IsBroken() bool { return !r.Channel.IsKnown() }

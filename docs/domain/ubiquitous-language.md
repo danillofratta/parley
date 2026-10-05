@@ -17,4 +17,6 @@ Use these terms exactly, in code, events, tables and docs.
 | Reply approval | The Conversations decision that a proposal (or a support agent's text) will be sent. | — |
 | Handoff | Moving a conversation to `awaiting_human`. | Escalation |
 | Delivery | The act of sending an approved reply through a channel, with its outcome. | — |
-| Inbound record | The raw provider payload stored once by the Channel Gateway. | Message |
+| Inbound message | A message a contact sent to a tenant through a channel; Parley accepts each one exactly once. | Kafka record, Inbox row |
+| Contact address | Where a contact can be reached: a channel plus the contact's chat on it. Replies go back to the same address. | Conversation key (a technical Kafka key) |
+| Actor | Who performed a change, recorded in audit fields: `user:<id>` or `system:<service>`. | Tenant |

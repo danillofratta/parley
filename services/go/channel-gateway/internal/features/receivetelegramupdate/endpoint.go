@@ -9,7 +9,7 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/parley/parley/services/go/channel-gateway/internal/domain/rules"
+	"github.com/danillofratta/parley/services/go/channel-gateway/internal/domain/seedwork"
 )
 
 const (
@@ -23,14 +23,14 @@ type EndpointConfig struct {
 }
 
 type Endpoint struct {
-	handler *ReceiveTelegramUpdateHandler
+	handler *Handler // called directly: no mediator
 	cfg     EndpointConfig
 	log     *slog.Logger
 }
 
 // NewEndpoint fails closed: without a webhook secret every request would pass
 // the constant-time comparison against an empty header.
-func NewEndpoint(handler *ReceiveTelegramUpdateHandler, cfg EndpointConfig, log *slog.Logger) (*Endpoint, error) {
+func NewEndpoint(handler *Handler, cfg EndpointConfig, log *slog.Logger) (*Endpoint, error) {
 	if handler == nil {
 		return nil, errors.New("handler is required")
 	}
@@ -43,20 +43,10 @@ func NewEndpoint(handler *ReceiveTelegramUpdateHandler, cfg EndpointConfig, log 
 	if log == nil {
 		log = slog.Default()
 	}
-
-	return &Endpoint{
-		handler: handler,
-		cfg:     cfg,
-		log:     log,
-	}, nil
+	return &Endpoint{handler: handler, cfg: cfg, log: log}, nil
 }
 
 func (e *Endpoint) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
 	got := r.Header.Get(secretHeader)
 	if subtle.ConstantTimeCompare([]byte(got), []byte(e.cfg.WebhookSecret)) != 1 {
 		http.Error(w, "forbidden", http.StatusForbidden)
@@ -74,7 +64,7 @@ func (e *Endpoint) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req ReceiveTelegramUpdateRequest
+	var req Request
 	if err := json.Unmarshal(body, &req); err != nil {
 		http.Error(w, "failed to parse body", http.StatusBadRequest)
 		return
@@ -87,7 +77,7 @@ func (e *Endpoint) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, err := e.handler.Handle(r.Context(), ReceiveTelegramUpdateCommand{
+	result, err := e.handler.Handle(r.Context(), Command{
 		TenantID:          e.cfg.TenantID,
 		ProviderMessageID: strconv.FormatInt(req.UpdateID, 10),
 		ExternalChatID:    strconv.FormatInt(req.Message.Chat.ID, 10),
@@ -112,7 +102,8 @@ func (e *Endpoint) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// cannotBeFixedByRetry: invalid input or a broken business rule would fail again on every redelivery.
 func cannotBeFixedByRetry(err error) bool {
-	var broken rules.BrokenRuleError
-	return errors.Is(err, ErrInvalidCommand) || errors.As(err, &broken)
+	var violation *seedwork.BusinessRuleViolation
+	return errors.Is(err, ErrInvalidCommand) || errors.As(err, &violation)
 }

@@ -2,8 +2,7 @@ package clock
 
 import "time"
 
+// System is the real clock; it satisfies the Clock port of the slices.
 type System struct{}
 
-func (s System) Now() time.Time {
-	return time.Now()
-}
+func (System) Now() time.Time { return time.Now() }

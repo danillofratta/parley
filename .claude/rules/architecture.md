@@ -6,8 +6,9 @@ These rules apply to every service, in every stack.
 
 ```
 <service>/
-  domain/            aggregates, entities, value objects, domain events,
-                     domain errors, repository ports (interfaces)
+  domain/            seedwork/, enums/, rules/, valueobjects/, events/,
+                     entities/, repositories/, services/
+                     (layout and dependency order: domain-model.md)
   features/
     <use_case>/      one folder per use case (a "slice"), one file per role
   infrastructure/    technical adapters shared by slices: database, Kafka,
@@ -93,6 +94,10 @@ The cost is more files and explicit mapping; we accept it for clarity.
 
 ## Tactical DDD
 
+The building blocks (Entity, AggregateRoot, value objects, enums, domain
+events, business rules, repositories) follow `.claude/rules/domain-model.md`
+in every stack.
+
 - Aggregates are small, protect their invariants and expose behaviour, not
   setters. Create them through factory methods.
 - Modify one aggregate per transaction. Reference other aggregates by id.
@@ -105,8 +110,10 @@ The cost is more files and explicit mapping; we accept it for clarity.
   in `infrastructure/`.
 - Validators check the input at the boundary (required, length, format);
   business invariants live in value objects and aggregates.
-- Domain errors are typed; the entry point maps them to HTTP status codes or
-  retry/dead-letter decisions.
+- Invariants are business-rule types checked with `CheckRule`; a broken rule
+  produces the single standard violation type (see `domain-model.md`). No
+  ad-hoc error types or catch-all error files in the domain. Entry points map
+  violations to HTTP 422 with the rule code, or to "acknowledge, do not retry".
 
 ## Depth per bounded context
 

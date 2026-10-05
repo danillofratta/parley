@@ -39,6 +39,10 @@ Domain language and context map:
   root per service (.NET built-in DI, Python `dependency-injector`, Go manual wiring).
   Slices never resolve dependencies themselves (no service locator).
 - `domain/` imports nothing from features, infrastructure or frameworks.
+- Every entity and aggregate follows the domain model standard
+  (`.claude/rules/domain-model.md`): `Id` (UUID v7), audit fields
+  (`CreatedAt`, `CreatedBy`, `UpdatedAt`, `UpdatedBy`), `Version`, `TenantId` on
+  aggregate roots, business rules checked with `CheckRule`.
 - A slice never imports another slice.
 - Commands go through an aggregate; queries never load aggregates and never write.
 - One aggregate changed per transaction; cross-aggregate effects happen through events.

@@ -1,4 +1,4 @@
-module github.com/parley/parley/services/go/channel-gateway
+module github.com/danillofratta/parley/services/go/channel-gateway
 
 go 1.25.0
 

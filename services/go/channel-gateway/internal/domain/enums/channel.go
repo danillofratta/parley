@@ -1,40 +1,37 @@
 package enums
 
-import "strings"
-
+// Channel is the medium a contact uses to reach a tenant.
 type Channel int
 
 const (
-	ChannelUnknown Channel = iota
+	ChannelUnknown Channel = iota // zero value: never a valid channel
 	ChannelTelegram
 )
 
+// channelNames holds the canonical lowercase names used in storage, events and keys.
 var channelNames = map[Channel]string{
-	ChannelUnknown:  "Unknown",
-	ChannelTelegram:   "Telegram",
+	ChannelTelegram: "telegram",
 }
 
 func (c Channel) String() string {
 	if name, ok := channelNames[c]; ok {
 		return name
 	}
-	return channelNames[ChannelUnknown]
+	return "unknown"
 }
 
+// IsKnown reports whether Parley supports the channel.
 func (c Channel) IsKnown() bool {
-	return c != ChannelUnknown
+	_, ok := channelNames[c]
+	return ok
 }
 
-func (c Channel) IsZero() bool {
-	return c == ChannelUnknown
-}
-
-func ParseChannel(name string) Channel {
-	clean := strings.TrimSpace(strings.ToLower(name))
-	for channel, channelName := range channelNames {
-		if strings.ToLower(channelName) == clean {
-			return channel
+// ParseChannel converts a stored or transported name into a Channel.
+func ParseChannel(name string) (Channel, bool) {
+	for channel, n := range channelNames {
+		if n == name {
+			return channel, true
 		}
 	}
-	return ChannelUnknown
+	return ChannelUnknown, false
 }

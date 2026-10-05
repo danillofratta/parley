@@ -4,15 +4,19 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/parley/parley/services/go/channel-gateway/internal/features/receivetelegramupdate"
-	"github.com/parley/parley/services/go/channel-gateway/internal/infrastructure/clock"
-	"github.com/parley/parley/services/go/channel-gateway/internal/infrastructure/config"
-	"github.com/parley/parley/services/go/channel-gateway/internal/infrastructure/postgres"
+	"github.com/danillofratta/parley/services/go/channel-gateway/internal/features/receivetelegramupdate"
+	"github.com/danillofratta/parley/services/go/channel-gateway/internal/infrastructure/clock"
+	"github.com/danillofratta/parley/services/go/channel-gateway/internal/infrastructure/config"
+	"github.com/danillofratta/parley/services/go/channel-gateway/internal/infrastructure/persistence"
+	"github.com/danillofratta/parley/services/go/channel-gateway/internal/infrastructure/postgres"
 )
+
+const actor = "system:channel-gateway"
 
 // New builds the dependency graph. It is the only place that knows concrete types.
 func New(cfg config.Config, pool *pgxpool.Pool, log *slog.Logger) (http.Handler, error) {
@@ -21,10 +25,11 @@ func New(cfg config.Config, pool *pgxpool.Pool, log *slog.Logger) (http.Handler,
 		return nil, fmt.Errorf("DEFAULT_TENANT_ID: %w", err)
 	}
 
-	messages := postgres.NewInboundMessageRepository(pool)
+	auditor := persistence.NewAuditor(time.Now, actor)
+	messages := postgres.NewInboundMessageRepository(pool, auditor)
 
 	receiveTelegramUpdate, err := receivetelegramupdate.NewEndpoint(
-		receivetelegramupdate.NewReceiveTelegramUpdateHandler(messages, clock.System{}),
+		receivetelegramupdate.NewHandler(messages, clock.System{}),
 		receivetelegramupdate.EndpointConfig{
 			WebhookSecret: cfg.WebhookSecret,
 			TenantID:      cfg.TenantID,
@@ -32,7 +37,7 @@ func New(cfg config.Config, pool *pgxpool.Pool, log *slog.Logger) (http.Handler,
 		log,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("build receive telegram endpoint: %w", err)
+		return nil, fmt.Errorf("build receive telegram update endpoint: %w", err)
 	}
 
 	mux := http.NewServeMux()

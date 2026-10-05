@@ -2,27 +2,21 @@ package persistence
 
 import "time"
 
+// Auditable is implemented by every entity through the seedwork.
 type Auditable interface {
-	CreatedAt() time.Time
-	UpdatedAt() time.Time
+	StampCreated(at time.Time, by string)
+	StampUpdated(at time.Time, by string)
 }
 
+// Auditor stamps audit fields with the current time and the acting user or service.
 type Auditor struct {
-	createdAt time.Time
-	updatedAt time.Time
+	now   func() time.Time
+	actor string
 }
 
-func (a Auditor) CreatedAt() time.Time {
-	return a.createdAt
+func NewAuditor(now func() time.Time, actor string) Auditor {
+	return Auditor{now: now, actor: actor}
 }
 
-func (a Auditor) UpdatedAt() time.Time {
-	return a.updatedAt
-}
-
-func NewAuditor(createdAt, updatedAt time.Time) Auditor {
-	return Auditor{
-		createdAt: createdAt,
-		updatedAt: updatedAt,
-	}
-}
+func (a Auditor) Created(e Auditable) { e.StampCreated(a.now().UTC(), a.actor) }
+func (a Auditor) Updated(e Auditable) { e.StampUpdated(a.now().UTC(), a.actor) }
