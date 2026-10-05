@@ -16,13 +16,21 @@ exactly once and publishes `MessageReceived.v1` through its Outbox.
 | --- | --- | --- | --- |
 | Out | `MessageReceived.v1` | `messages.inbound` | `conversationKey` (`<channel>:<chat>`) |
 
+## Outbox relay
+
+Runs inside the gateway process. Each cycle takes a PostgreSQL advisory lock
+(one active publisher across replicas, preserving per-conversation order),
+reads pending rows in `occurred_at` order, publishes them to Kafka with the
+conversation key and marks `published_at`. It stops at the first failure and
+retries on the next cycle (at-least-once).
+
 ## Layout
 
 ```
 cmd/gateway/            entry point
 internal/domain/        seedwork, enums, rules, valueobjects, events, entities, repositories
 internal/features/      one folder per use case
-internal/infrastructure/ config, clock, persistence (Auditor), outbox, postgres
+internal/infrastructure/ config, clock, persistence (Auditor), outbox (mapping + relay), kafka, postgres
 internal/bootstrap/     composition root
 migrations/             schema "gateway"
 ```
@@ -42,6 +50,10 @@ migrations/             schema "gateway"
 | `GATEWAY_DATABASE_URL` | `postgres://gateway:gateway@localhost:5432/parley?sslmode=disable` |
 | `TELEGRAM_WEBHOOK_SECRET` | required |
 | `DEFAULT_TENANT_ID` | `00000000-0000-0000-0000-000000000001` |
+| `KAFKA_BOOTSTRAP_SERVERS` | `localhost:9092` |
+| `OUTBOX_POLL_INTERVAL` | `500ms` |
+| `OUTBOX_BATCH_SIZE` | `100` |
+| `OUTBOX_PUBLISH_TIMEOUT` | `10s` |
 
 ## Tests
 

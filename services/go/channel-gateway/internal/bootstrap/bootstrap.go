@@ -12,14 +12,29 @@ import (
 	"github.com/danillofratta/parley/services/go/channel-gateway/internal/features/receivetelegramupdate"
 	"github.com/danillofratta/parley/services/go/channel-gateway/internal/infrastructure/clock"
 	"github.com/danillofratta/parley/services/go/channel-gateway/internal/infrastructure/config"
+	"github.com/danillofratta/parley/services/go/channel-gateway/internal/infrastructure/kafka"
+	"github.com/danillofratta/parley/services/go/channel-gateway/internal/infrastructure/outbox"
 	"github.com/danillofratta/parley/services/go/channel-gateway/internal/infrastructure/persistence"
 	"github.com/danillofratta/parley/services/go/channel-gateway/internal/infrastructure/postgres"
 )
 
-const actor = "system:channel-gateway"
+const (
+	actor    = "system:channel-gateway"
+	clientID = "parley-channel-gateway"
+)
+
+// App is everything main needs to run: the HTTP handler, the outbox relay and cleanup.
+type App struct {
+	HTTP  http.Handler
+	Relay *outbox.Relay
+	close func()
+}
+
+// Close releases the resources created by New (the Kafka client).
+func (a *App) Close() { a.close() }
 
 // New builds the dependency graph. It is the only place that knows concrete types.
-func New(cfg config.Config, pool *pgxpool.Pool, log *slog.Logger) (http.Handler, error) {
+func New(cfg config.Config, pool *pgxpool.Pool, log *slog.Logger) (*App, error) {
 	// Fail closed: a misconfigured tenant must stop the service, not drop messages.
 	if _, err := uuid.Parse(cfg.TenantID); err != nil {
 		return nil, fmt.Errorf("DEFAULT_TENANT_ID: %w", err)
@@ -40,6 +55,16 @@ func New(cfg config.Config, pool *pgxpool.Pool, log *slog.Logger) (http.Handler,
 		return nil, fmt.Errorf("build receive telegram update endpoint: %w", err)
 	}
 
+	publisher, err := kafka.NewPublisher(cfg.KafkaBrokers, clientID)
+	if err != nil {
+		return nil, err
+	}
+	relay := outbox.NewRelay(pool, publisher, outbox.RelayConfig{
+		PollInterval:   cfg.OutboxPollInterval,
+		BatchSize:      cfg.OutboxBatchSize,
+		PublishTimeout: cfg.OutboxPublishTimeout,
+	}, log)
+
 	mux := http.NewServeMux()
 	mux.Handle("POST /webhooks/telegram", receiveTelegramUpdate)
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
@@ -49,5 +74,6 @@ func New(cfg config.Config, pool *pgxpool.Pool, log *slog.Logger) (http.Handler,
 		}
 		w.WriteHeader(http.StatusOK)
 	})
-	return mux, nil
+
+	return &App{HTTP: mux, Relay: relay, close: publisher.Close}, nil
 }

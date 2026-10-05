@@ -39,12 +39,21 @@ CREATE TABLE <schema>.inbox_messages (
 
 ## Relay
 
-1. `SELECT ... WHERE published_at IS NULL ORDER BY occurred_at LIMIT n FOR UPDATE SKIP LOCKED`.
-2. Publish each row with key = `message_key`, headers incl. `traceparent`.
-   Use an idempotent producer (`enable.idempotence=true`, `acks=all`).
-3. Mark `published_at` only after the broker acknowledges.
-4. At-least-once: duplicates downstream are expected; the Inbox absorbs them.
-5. Ordering: publish rows of the same `message_key` in `occurred_at` order.
+1. One transaction per cycle. First `SELECT pg_try_advisory_xact_lock(<relay key>)`:
+   only the instance holding the lock publishes in that cycle. Do **not** use
+   `FOR UPDATE SKIP LOCKED` across instances: two relays would publish rows of
+   the same `message_key` in parallel and break per-conversation order.
+2. `SELECT ... WHERE published_at IS NULL ORDER BY occurred_at, id LIMIT n`.
+3. Publish each row synchronously with key = `message_key`, headers incl.
+   `traceparent`, idempotent producer (`acks=all`), with a timeout per record.
+4. Stop at the first failure and increment `attempts`; publishing later rows
+   would reorder that conversation. Poison rows go to a dead-letter process
+   after N attempts (next step).
+5. Mark the published ids (`published_at = now()`) and commit.
+6. At-least-once: if the commit fails after the broker acknowledged, rows are
+   published again; consumers' Inbox absorbs the duplicates.
+7. Scale beyond one active relay by partitioning the relay by key hash or by
+   moving to CDC (Debezium), recorded in ADR 0003.
 
 ## Consumer
 

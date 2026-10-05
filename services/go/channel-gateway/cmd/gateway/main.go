@@ -44,29 +44,39 @@ func run(log *slog.Logger) error {
 		return fmt.Errorf("ping database: %w", err)
 	}
 
-	handler, err := bootstrap.New(cfg, pool, log)
+	app, err := bootstrap.New(cfg, pool, log)
 	if err != nil {
 		return err
 	}
+	defer app.Close()
 
 	srv := &http.Server{
 		Addr:              cfg.HTTPAddr,
-		Handler:           handler,
+		Handler:           app.HTTP,
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       10 * time.Second,
 		WriteTimeout:      10 * time.Second,
 	}
 
-	errCh := make(chan error, 1)
+	errCh := make(chan error, 2) // HTTP server and relay
 	go func() {
 		log.Info("gateway listening", "addr", cfg.HTTPAddr)
 		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			errCh <- err
 		}
 	}()
+	relayDone := make(chan struct{})
+	go func() {
+		defer close(relayDone)
+		if err := app.Relay.Run(ctx); err != nil {
+			errCh <- err
+		}
+	}()
 
 	select {
 	case err := <-errCh:
+		stop()
+		<-relayDone
 		return err
 	case <-ctx.Done():
 		log.Info("shutdown signal received")
@@ -74,5 +84,7 @@ func run(log *slog.Logger) error {
 
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	return srv.Shutdown(shutdownCtx)
+	err = srv.Shutdown(shutdownCtx)
+	<-relayDone // an interrupted cycle rolls back; its rows are published again next start
+	return err
 }
