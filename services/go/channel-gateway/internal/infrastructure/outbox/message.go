@@ -1,14 +1,25 @@
 package outbox
 
-const topicMessageInbound = "message.inbound"
+import (
+	"encoding/json"
+	"fmt"
+	"time"
+
+	"github.com/google/uuid"
+
+	"github.com/parley/parley/services/go/channel-gateway/internal/domain/events"
+	"github.com/parley/parley/services/go/channel-gateway/internal/domain/valueobjects"
+)
+
+const topicMessageInbound = "messages.inbound"
 
 type Message struct {
-	Id string
-	TenantId string
-	Type string
-	Topic string
-	Key string
-	Payload []byte
+	ID         string
+	TenantID   string
+	Type       string
+	Topic      string
+	Key        string
+	Payload    []byte
 	OccurredAt time.Time
 }
 
@@ -31,32 +42,35 @@ type messageReceivedV1 struct {
 }
 
 // FromDomainEvent maps a domain event to the integration event that leaves the service.
-func FromDomainEvent(event seedwork.DomainEvent) (Message, error) {
+func FromDomainEvent(event events.DomainEvent) (Message, error) {
 	switch e := event.(type) {
 	case events.MessageReceived:
+		occurredAt := time.Unix(e.OccurredAtUnix(), 0).UTC()
 		env := envelope{
-			MessageID:       e.EventID().String(),
-			Type:            "MessageReceived.v1",
-			TenantID:        e.TenantID().String(),
-			ConversationKey: conversationKey(e.Sender),
-			OccurredAt:      e.OccurredAt(),
+			MessageID:       uuid.NewString(),
+			Type:            e.EventType(),
+			TenantID:        e.TenantID(),
+			ConversationKey: conversationKey(e.Sender()),
+			OccurredAt:      occurredAt,
 			Payload: messageReceivedV1{
-				InboundMessageID:  e.AggregateID().String(),
-				Channel:           e.Sender.Channel().String(),
-				ProviderMessageID: e.ProviderMessageID,
-				Text:              e.Text,
-				ReceivedAt:        e.OccurredAt(),
+				InboundMessageID:  e.InboundMessageID(),
+				Channel:           e.Sender().Channel().String(),
+				ProviderMessageID: e.ProviderMessageID(),
+				Text:              e.Text(),
+				ReceivedAt:        time.Unix(e.ReceivedAtUnix(), 0).UTC(),
 			},
 		}
+
 		payload, err := json.Marshal(env)
 		if err != nil {
 			return Message{}, fmt.Errorf("marshal %s: %w", env.Type, err)
 		}
+
 		return Message{
 			ID:         env.MessageID,
 			TenantID:   env.TenantID,
 			Type:       env.Type,
-			Topic:      topicMessagesInbound,
+			Topic:      topicMessageInbound,
 			Key:        env.ConversationKey,
 			Payload:    payload,
 			OccurredAt: env.OccurredAt,

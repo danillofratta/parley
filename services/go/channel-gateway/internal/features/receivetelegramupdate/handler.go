@@ -28,7 +28,7 @@ func (h *ReceiveTelegramUpdateHandler) Handle(ctx context.Context, cmd ReceiveTe
 		return ReceiveTelegramUpdateResult{}, err
 	}
 
-	sender, err := NewContactAddress(enums.ChannelTelegram, cmd.ExternalChatID)
+	sender, err := valueobjects.NewContactAddress(enums.ChannelTelegram, cmd.ExternalChatID)
 	if err != nil {
 		return ReceiveTelegramUpdateResult{}, fmt.Errorf("%w: external chat id is not valid", ErrInvalidCommand)
 	}

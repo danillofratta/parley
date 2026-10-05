@@ -8,5 +8,4 @@ import (
 
 type InboundMessageRepository interface {
 	Add(ctx context.Context, message *entities.InboundMessage) error
-	FindByID(ctx context.Context, id string) (*entities.InboundMessage, error)
 }

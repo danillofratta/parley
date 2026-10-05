@@ -1,21 +1,21 @@
 package config
 
 import (
-	"os"
 	"errors"
+	"os"
 )
 
 type Config struct {
-	HTTPAddr string
-	DatabaseURL string
+	HTTPAddr      string
+	DatabaseURL   string
 	WebhookSecret string
-	TenantId string
+	TenantID      string
 }
 
 func Load() (Config, error) {
 	cfg := Config{
 		HTTPAddr:      getenv("HTTP_ADDR", ":8081"),
-		DatabaseURL:   getenv("GATEWAY_DATABASE_URL", "postgres://gateway:gateway@localhost:5432/parley"),
+		DatabaseURL:   getenv("GATEWAY_DATABASE_URL", "postgres://parley:parley@localhost:5432/parley?sslmode=disable"),
 		WebhookSecret: os.Getenv("TELEGRAM_WEBHOOK_SECRET"),
 		TenantID:      getenv("DEFAULT_TENANT_ID", "00000000-0000-0000-0000-000000000001"),
 	}

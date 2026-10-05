@@ -13,8 +13,8 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/danillofratta/parley/services/go/channel-gateway/internal/bootstrap"
-	"github.com/danillofratta/parley/services/go/channel-gateway/internal/infrastructure/config"
+	"github.com/parley/parley/services/go/channel-gateway/internal/bootstrap"
+	"github.com/parley/parley/services/go/channel-gateway/internal/infrastructure/config"
 )
 
 func main() {

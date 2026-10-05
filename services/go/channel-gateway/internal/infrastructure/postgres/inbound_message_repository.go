@@ -3,35 +3,37 @@ package postgres
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/danillofratta/parley/services/go/channel-gateway/internal/domain/entities"
-	"github.com/danillofratta/parley/services/go/channel-gateway/internal/domain/seedwork"
-	"github.com/danillofratta/parley/services/go/channel-gateway/internal/infrastructure/outbox"
-	"github.com/danillofratta/parley/services/go/channel-gateway/internal/infrastructure/persistence"
+	"github.com/parley/parley/services/go/channel-gateway/internal/domain/entities"
+	"github.com/parley/parley/services/go/channel-gateway/internal/domain/repositories"
+	"github.com/parley/parley/services/go/channel-gateway/internal/infrastructure/outbox"
 )
 
 type InboundMessageRepository struct {
-	pool    *pgxpool.Pool
-	auditor persistence.Auditor
+	pool *pgxpool.Pool
 }
 
-func NewInboundMessageRepository(pool *pgxpool.Pool, auditor persistence.Auditor) *InboundMessageRepository {
-	return &InboundMessageRepository{pool: pool, auditor: auditor}
+const createdBy = "system:channel-gateway"
+
+func NewInboundMessageRepository(pool *pgxpool.Pool) *InboundMessageRepository {
+	return &InboundMessageRepository{pool: pool}
 }
 
 // Add stores the message and writes its events to the outbox in one transaction.
 // The unique constraint on (tenant, channel, provider message id) acts as the Inbox:
 // a redelivered message conflicts, writes nothing and produces no new event.
 func (r *InboundMessageRepository) Add(ctx context.Context, message *entities.InboundMessage) error {
-	r.auditor.Created(message)
-
 	tx, err := r.pool.Begin(ctx)
 	if err != nil {
 		return fmt.Errorf("begin transaction: %w", err)
 	}
 	defer func() { _ = tx.Rollback(ctx) }() // no-op after a successful commit
+
+	receivedAt := time.Unix(message.ReceivedAtUnix(), 0).UTC()
+	createdAt := time.Now().UTC()
 
 	tag, err := tx.Exec(ctx, `
 		INSERT INTO gateway.inbound_messages
@@ -44,16 +46,16 @@ func (r *InboundMessageRepository) Add(ctx context.Context, message *entities.In
 		message.Sender().Channel().String(),
 		message.Sender().Chat(),
 		message.ProviderMessageID(),
-		message.ReceivedAt(),
-		message.CreatedAt(),
-		message.CreatedBy(),
-		message.Version(),
+		receivedAt,
+		createdAt,
+		createdBy,
+		1,
 	)
 	if err != nil {
 		return fmt.Errorf("insert inbound message: %w", err)
 	}
 	if tag.RowsAffected() == 0 {
-		return seedwork.ErrAlreadyExists
+		return repositories.ErrAlreadyExists
 	}
 
 	for _, event := range message.DomainEvents() {

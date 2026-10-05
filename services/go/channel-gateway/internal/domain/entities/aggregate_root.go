@@ -1,10 +1,10 @@
 package entities
 
 import (
-	"crypto/rand"
-	"encoding/hex"
 	"fmt"
 	"strings"
+
+	"github.com/google/uuid"
 
 	"github.com/parley/parley/services/go/channel-gateway/internal/domain/events"
 )
@@ -62,9 +62,9 @@ func (a *AggregateRoot) ClearDomainEvents() {
 }
 
 func newID() (string, error) {
-	b := make([]byte, 16)
-	if _, err := rand.Read(b); err != nil {
+	id, err := uuid.NewRandom()
+	if err != nil {
 		return "", err
 	}
-	return hex.EncodeToString(b), nil
+	return id.String(), nil
 }
